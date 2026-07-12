@@ -4,7 +4,6 @@ __pycache__/
 venv/
 .venv/
 .pytest_cache/
-models/
 data/
 test_ir_results_*/
 test_rgb_results_*/
