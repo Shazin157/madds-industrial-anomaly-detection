@@ -1,0 +1,14 @@
+# Created by pytest automatically.
+__pycache__/
+*.pyc
+venv/
+.venv/
+.pytest_cache/
+models/
+data/
+test_ir_results_*/
+test_rgb_results_*/
+*.pth
+*.pt
+*.ckpt
+!baselines/**
