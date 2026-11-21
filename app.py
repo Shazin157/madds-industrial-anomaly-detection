@@ -16,14 +16,10 @@ st.set_page_config(page_title="Defect Detection", page_icon="🔍", layout="wide
 APP_MODES = ["Industrial", "Agriculture", "Grid", "Custom"]
 
 
-@st.cache_resource(show_spinner="Loading RGB branch...")
-def load_rgb_branch():
-    return RGBBranch().eval()
-
-
-@st.cache_resource(show_spinner="Loading IR branch...")
-def load_ir_branch():
-    return IRBranch().eval()
+@st.cache_resource(show_spinner="Loading model (first run downloads weights, ~1-2 min)...", max_entries=1)
+def load_branch(modality: str):
+    # max_entries=1 keeps only one branch in RAM (free hosting has ~1 GB)
+    return (RGBBranch() if modality == "RGB" else IRBranch()).eval()
 
 
 @st.cache_data(show_spinner="Loading baseline...")
@@ -116,11 +112,20 @@ def main():
     st.subheader("Upload Inspection Image")
     uploaded_file = st.file_uploader("Choose an image", type=["jpg","jpeg","png","bmp","tiff"])
 
-    if uploaded_file is None:
-        st.info("👆 Upload an image to begin.")
+    sample_dir = Path("samples")
+    samples = sorted(p for p in sample_dir.glob("*")
+                     if p.suffix.lower() in {".jpg", ".jpeg", ".png", ".bmp"}) if sample_dir.exists() else []
+    source = uploaded_file
+    if source is None and samples:
+        choice = st.selectbox("...or try a sample image", ["-"] + [p.name for p in samples])
+        if choice != "-":
+            source = sample_dir / choice
+
+    if source is None:
+        st.info("👆 Upload an image or pick a sample to begin.")
         st.stop()
 
-    image_bgr = pil_to_bgr(Image.open(uploaded_file))
+    image_bgr = pil_to_bgr(Image.open(source))
     modality  = detect_modality(image_bgr)
     st.success(f"✅ Modality: **{modality}** ({'Thermal IR' if modality=='IR' else 'Visual RGB'})")
 
@@ -137,7 +142,7 @@ def main():
 
     # Run branch
     with st.spinner(f"Running {modality} branch..."):
-        branch = load_rgb_branch() if modality == "RGB" else load_ir_branch()
+        branch = load_branch(modality)
         tensor, _ = preprocess_uploaded(image_bgr)
         with torch.inference_mode():
             features = branch(tensor.to(device))
